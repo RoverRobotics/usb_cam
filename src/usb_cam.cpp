@@ -385,11 +385,11 @@ int UsbCam::init_mjpeg_decoder(int image_width, int image_height)
   avcodec_context_->height = image_height;
 
 #if LIBAVCODEC_VERSION_MAJOR > 52
-  avcodec_context_->pix_fmt = AV_PIX_FMT_YUV422P;
+  avcodec_context_->pix_fmt = AV_PIX_FMT_YUV420P;
   avcodec_context_->codec_type = AVMEDIA_TYPE_VIDEO;
 #endif
 
-  avframe_camera_size_ = av_image_get_buffer_size(AV_PIX_FMT_YUV422P, image_width, image_height, 1);
+  avframe_camera_size_ = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, image_width, image_height, 1);
   avframe_rgb_size_ = av_image_get_buffer_size(AV_PIX_FMT_RGB24, image_width, image_height, 1);
 
   /* open it */
