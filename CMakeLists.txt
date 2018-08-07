@@ -12,7 +12,9 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   message_generation
   camera_info_manager
+  move_base_msgs
   nodelet
+  actionlib
 )
 
 add_service_files(
@@ -61,6 +63,10 @@ target_link_libraries(${PROJECT_NAME}_nodelet
   ${swscale_LIBRARIES}
   ${catkin_LIBRARIES}
 )
+
+add_executable(move_dock src/move_dock.cpp)
+target_link_libraries(move_dock ${catkin_LIBRARIES})
+add_dependencies(move_dock usb_cam_gencpp)
 
 ## Declare a cpp executable
 add_executable(${PROJECT_NAME}_node nodes/usb_cam_node.cpp)
