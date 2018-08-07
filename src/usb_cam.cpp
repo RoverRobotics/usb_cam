@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <algorithm>
 #include <fcntl.h>              /* low-level i/o */
 #include <unistd.h>
 #include <errno.h>
@@ -51,11 +52,11 @@
 #include <ros/ros.h>
 #include <boost/lexical_cast.hpp>
 #include <sensor_msgs/fill_image.h>
+#include <image_transport/image_transport.h>
+#include <camera_info_manager/camera_info_manager.h>
 
 #include <usb_cam/usb_cam.h>
-#define avcodec_alloc_frame av_frame_alloc
-#define PIX_FMT_RGB24 AV_PIX_FMT_RGB24
-#define PIX_FMT_YUV422P AV_PIX_FMT_YUV422P
+
 #define CLEAR(x) memset (&(x), 0, sizeof (x))
 
 namespace usb_cam {
@@ -671,6 +672,51 @@ void UsbCam::start_capturing(void)
       break;
   }
   is_capturing_ = true;
+}
+
+void UsbCam::start_pub(const std::string& topic_name, ros::NodeHandle nh){
+    ROS_INFO("%s",topic_name.c_str());
+    if(std::find(image_topic_name_vec.begin(), image_topic_name_vec.end(), topic_name) != image_topic_name_vec.end())
+    {
+      ROS_INFO("Image Topic already exists.");
+    } else {
+      ROS_INFO("Image topic not found. Adding to pub list.");
+      //create new publisher
+      image_transport::CameraPublisher new_pub;
+      image_transport::ImageTransport it(nh);
+      new_pub = it.advertiseCamera(topic_name, 1);
+      //Add publisher and topic name to vectors for storing
+      image_topic_name_vec.push_back(topic_name);
+      image_pub_vec.push_back(new_pub);
+    }
+}
+
+void UsbCam::stop_pub(const std::string& topic_name){
+    if(std::find(image_topic_name_vec.begin(), image_topic_name_vec.end(), topic_name) != image_topic_name_vec.end())
+    {
+      ROS_INFO("%s found. Removing from pub list", topic_name.c_str());
+      for (std::vector<int>::size_type i=0; i != image_topic_name_vec.size(); i++)
+      {
+        if (image_topic_name_vec[i]==topic_name)
+        {
+          image_pub_vec[i].shutdown(); //shutdown publisher
+          image_topic_name_vec.erase(image_topic_name_vec.begin() + i);
+          image_pub_vec.erase(image_pub_vec.begin() + i); //remove from publishers list
+          break;
+        }
+      }
+    } else {
+      ROS_INFO("Topic not found");
+    }
+}
+
+void UsbCam::publish_all(const sensor_msgs::Image img, const sensor_msgs::CameraInfoPtr ci)
+{
+  for (std::vector<int>::size_type i=0; i != image_pub_vec.size(); i++)
+  {
+    // publish the image
+    image_pub_vec[i].publish(img, *ci);
+  } 
 }
 
 void UsbCam::uninit_device(void)

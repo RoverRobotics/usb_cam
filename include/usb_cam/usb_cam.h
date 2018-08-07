@@ -57,6 +57,9 @@ extern "C"
 #include <sstream>
 
 #include <sensor_msgs/Image.h>
+#include <usb_cam/HandleTopic.h>
+#include <image_transport/image_transport.h>
+#include <camera_info_manager/camera_info_manager.h>
 
 namespace usb_cam {
 
@@ -98,6 +101,12 @@ class UsbCam {
   void start_capturing(void);
   bool is_capturing();
 
+  //Jacks service functions
+  void start_pub(const std::string& param, ros::NodeHandle nh);
+  void stop_pub(const std::string& param);
+  //Jacks publisher functions
+  void publish_all(const sensor_msgs::Image img, const sensor_msgs::CameraInfoPtr ci);
+
  private:
   typedef struct
   {
@@ -132,6 +141,9 @@ class UsbCam {
 
 
   std::string camera_dev_;
+  std::vector <std::string> image_topic_name_vec;
+  std::vector <image_transport::CameraPublisher> image_pub_vec;
+
   unsigned int pixelformat_;
   bool monochrome_;
   io_method io_;
@@ -147,6 +159,7 @@ class UsbCam {
   int avframe_rgb_size_;
   struct SwsContext *video_sws_;
   camera_image_t *image_;
+
 
 };
 

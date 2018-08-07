@@ -40,6 +40,7 @@
 #include <camera_info_manager/camera_info_manager.h>
 #include <sstream>
 #include <std_srvs/Empty.h>
+#include <usb_cam/HandleTopic.h>
 
 namespace usb_cam {
 
@@ -64,9 +65,20 @@ public:
 
   UsbCam cam_;
 
-  ros::ServiceServer service_start_, service_stop_;
+  ros::ServiceServer service_start_, service_stop_, service_start_pub_, service_stop_pub_;
 
+  bool service_start_pub(usb_cam::HandleTopic::Request &req, usb_cam::HandleTopic::Response &res)
+  {
+    cam_.start_pub(req.topic_name, node_);
+    return true;
+  }
 
+  bool service_stop_pub(usb_cam::HandleTopic::Request &req, usb_cam::HandleTopic::Response &res)
+  {
+    cam_.stop_pub(req.topic_name);
+    //ROS_INFO("stop %s", req.topic_name.c_str());
+    return true;
+  }
 
   bool service_start_cap(std_srvs::Empty::Request  &req, std_srvs::Empty::Response &res )
   {
@@ -121,7 +133,8 @@ public:
     // create Services
     service_start_ = node_.advertiseService("start_capture", &UsbCamNode::service_start_cap, this);
     service_stop_ = node_.advertiseService("stop_capture", &UsbCamNode::service_stop_cap, this);
-
+    service_start_pub_ = node_.advertiseService("start_pub", &UsbCamNode::service_start_pub, this);
+    service_stop_pub_ = node_.advertiseService("stop_pub", &UsbCamNode::service_stop_pub, this);
     // check for default camera info
     if (!cinfo_->isCalibrated())
     {
@@ -238,6 +251,7 @@ public:
 
     // publish the image
     image_pub_.publish(img_, *ci);
+    cam_.publish_all(img_, ci);
 
     return true;
   }
