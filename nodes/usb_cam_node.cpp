@@ -61,14 +61,13 @@ public:
   int image_width_, image_height_, framerate_, exposure_, brightness_, contrast_, saturation_, sharpness_, focus_,
       white_balance_, gain_;
   bool autofocus_, autoexposure_, auto_white_balance_;
-  bool auto_dock_start_ = false;
   boost::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
 
   UsbCam cam_;
 
   ros::ServiceServer service_start_, service_stop_, service_start_pub_, service_stop_pub_;
 
-  ros::Subscriber auto_dock_start_sub_;
+  ros::Subscriber auto_dock_start_sub_, auto_dock_cancel_sub_;
 
   bool service_start_pub(usb_cam::HandleTopic::Request &req, usb_cam::HandleTopic::Response &res)
   {
@@ -98,7 +97,17 @@ public:
 
   void start_cb(const std_msgs::Bool::ConstPtr& msg)
   {
+    ROS_INFO("Start auto dock image piping!");
     cam_.auto_dock_start_ = msg->data;
+  }
+
+  void cancel_cb(const std_msgs::Bool::ConstPtr& msg)
+  {
+    ROS_INFO("Cancel auto dock image piping!");
+    if (msg->data)
+    {
+      cam_.auto_dock_start_ = false ;
+    }
   }
 
   UsbCamNode() :
@@ -107,8 +116,10 @@ public:
     // advertise the main image topic
     image_transport::ImageTransport it(node_);
     image_pub_ = it.advertiseCamera("image_raw", 1);
-    auto_dock_start_sub_ = node_.subscribe("/auto_dock/start", 1, &UsbCamNode::start_cb, this);
-
+    auto_dock_start_sub_ = node_.subscribe("/joystick/a_button", 1, &UsbCamNode::start_cb, this);
+    auto_dock_cancel_sub_ = node_.subscribe("/joystick/b_button", 1, &UsbCamNode::cancel_cb, this);
+    cam_.auto_dock_start_ = false;
+    cam_.auto_dock_cancel_ = true;
     // grab the parameters
     node_.param("video_device", video_device_name_, std::string("/dev/video0"));
     node_.param("brightness", brightness_, -1); //0-255, -1 "leave alone"
@@ -262,6 +273,7 @@ public:
     // publish the image
     if (cam_.auto_dock_start_)
     {
+      ROS_INFO("-----------------Publishing------------ ", cam_.auto_dock_start_);
       image_pub_.publish(img_, *ci);
       cam_.publish_all(img_, ci);
     }
