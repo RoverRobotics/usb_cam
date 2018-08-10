@@ -100,7 +100,7 @@ class UsbCam {
   void stop_capturing(void);
   void start_capturing(void);
   bool is_capturing();
-
+  bool auto_dock_start_;
   //Jacks service functions
   void start_pub(const std::string& param, ros::NodeHandle nh);
   void stop_pub(const std::string& param);

@@ -41,6 +41,7 @@
 #include <sstream>
 #include <std_srvs/Empty.h>
 #include <usb_cam/HandleTopic.h>
+#include <std_msgs/Bool.h>
 
 namespace usb_cam {
 
@@ -53,19 +54,20 @@ public:
   // shared image message
   sensor_msgs::Image img_;
   image_transport::CameraPublisher image_pub_;
-
   // parameters
   std::string video_device_name_, io_method_name_, pixel_format_name_, camera_name_, camera_info_url_;
   //std::string start_service_name_, start_service_name_;
   bool streaming_status_;
   int image_width_, image_height_, framerate_, exposure_, brightness_, contrast_, saturation_, sharpness_, focus_,
       white_balance_, gain_;
-  bool autofocus_, autoexposure_, auto_white_balance_;
+  bool autofocus_, autoexposure_, auto_white_balance_, auto_dock_start_;
   boost::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
 
   UsbCam cam_;
 
   ros::ServiceServer service_start_, service_stop_, service_start_pub_, service_stop_pub_;
+
+  ros::Subscriber auto_dock_start_sub_;
 
   bool service_start_pub(usb_cam::HandleTopic::Request &req, usb_cam::HandleTopic::Response &res)
   {
@@ -93,12 +95,18 @@ public:
     return true;
   }
 
+  void start_cb(const std_msgs::Bool::ConstPtr& msg)
+  {
+    cam_.auto_dock_start_ = msg->data;
+  }
+
   UsbCamNode() :
       node_("~")
   {
     // advertise the main image topic
     image_transport::ImageTransport it(node_);
     image_pub_ = it.advertiseCamera("image_raw", 1);
+    auto_dock_start_sub_ = node_.subscribe("/auto_dock/start", 1, &UsbCamNode::start_cb, this);
 
     // grab the parameters
     node_.param("video_device", video_device_name_, std::string("/dev/video0"));
@@ -135,6 +143,7 @@ public:
     service_stop_ = node_.advertiseService("stop_capture", &UsbCamNode::service_stop_cap, this);
     service_start_pub_ = node_.advertiseService("start_pub", &UsbCamNode::service_start_pub, this);
     service_stop_pub_ = node_.advertiseService("stop_pub", &UsbCamNode::service_stop_pub, this);
+    //Create subscribers
     // check for default camera info
     if (!cinfo_->isCalibrated())
     {
@@ -250,9 +259,11 @@ public:
     ci->header.stamp = img_.header.stamp;
 
     // publish the image
-    image_pub_.publish(img_, *ci);
-    cam_.publish_all(img_, ci);
-
+    if (cam_.auto_dock_start_)
+    {
+      image_pub_.publish(img_, *ci);
+      cam_.publish_all(img_, ci);
+    }
     return true;
   }
 
