@@ -97,13 +97,11 @@ public:
 
   void start_cb(const std_msgs::Bool::ConstPtr& msg)
   {
-    ROS_INFO("Start auto dock image piping!");
     cam_.auto_dock_start_ = msg->data;
   }
 
   void cancel_cb(const std_msgs::Bool::ConstPtr& msg)
   {
-    ROS_INFO("Cancel auto dock image piping!");
     if (msg->data)
     {
       cam_.auto_dock_start_ = false ;
@@ -116,8 +114,8 @@ public:
     // advertise the main image topic
     image_transport::ImageTransport it(node_);
     image_pub_ = it.advertiseCamera("image_raw", 1);
-    auto_dock_start_sub_ = node_.subscribe("/joystick/a_button", 1, &UsbCamNode::start_cb, this);
-    auto_dock_cancel_sub_ = node_.subscribe("/joystick/b_button", 1, &UsbCamNode::cancel_cb, this);
+    auto_dock_start_sub_ = node_.subscribe("/auto_dock/start", 1, &UsbCamNode::start_cb, this);
+    auto_dock_cancel_sub_ = node_.subscribe("/auto_dock/cancel", 1, &UsbCamNode::cancel_cb, this);
     cam_.auto_dock_start_ = false;
     cam_.auto_dock_cancel_ = true;
     // grab the parameters
@@ -273,7 +271,6 @@ public:
     // publish the image
     if (cam_.auto_dock_start_)
     {
-      ROS_INFO("-----------------Publishing------------ ", cam_.auto_dock_start_);
       image_pub_.publish(img_, *ci);
       cam_.publish_all(img_, ci);
     }
