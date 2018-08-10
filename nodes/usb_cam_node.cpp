@@ -60,7 +60,8 @@ public:
   bool streaming_status_;
   int image_width_, image_height_, framerate_, exposure_, brightness_, contrast_, saturation_, sharpness_, focus_,
       white_balance_, gain_;
-  bool autofocus_, autoexposure_, auto_white_balance_, auto_dock_start_;
+  bool autofocus_, autoexposure_, auto_white_balance_;
+  bool auto_dock_start_ = false;
   boost::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
 
   UsbCam cam_;
