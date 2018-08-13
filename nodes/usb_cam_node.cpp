@@ -42,6 +42,7 @@
 #include <std_srvs/Empty.h>
 #include <usb_cam/HandleTopic.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/String.h>
 
 namespace usb_cam {
 
@@ -67,7 +68,7 @@ public:
 
   ros::ServiceServer service_start_, service_stop_, service_start_pub_, service_stop_pub_;
 
-  ros::Subscriber auto_dock_start_sub_, auto_dock_cancel_sub_;
+  ros::Subscriber auto_dock_start_sub_, auto_dock_cancel_sub_, auto_dock_docking_state_sub_;
 
   bool service_start_pub(usb_cam::HandleTopic::Request &req, usb_cam::HandleTopic::Response &res)
   {
@@ -108,14 +109,29 @@ public:
     }
   }
 
+  void docking_state_cb(const std_msgs::String::ConstPtr& msg)
+  {
+    std::string state = msg->data.c_str();
+    if (( state== (std::string) "docked") || (state == (std::string) "docking_failed") || (state ==(std::string) "waiting") || ( state ==(std::string) "undock"))
+    {
+      cam_.auto_dock_start_ = false;
+    }
+    else
+    {
+      cam_.auto_dock_start_ = true;
+    }
+  }
+
   UsbCamNode() :
       node_("~")
   {
     // advertise the main image topic
     image_transport::ImageTransport it(node_);
     image_pub_ = it.advertiseCamera("image_raw", 1);
-    auto_dock_start_sub_ = node_.subscribe("/auto_dock/start", 1, &UsbCamNode::start_cb, this);
-    auto_dock_cancel_sub_ = node_.subscribe("/auto_dock/cancel", 1, &UsbCamNode::cancel_cb, this);
+    //auto_dock_start_sub_ = node_.subscribe("/auto_dock/start", 1, &UsbCamNode::start_cb, this);
+    //auto_dock_cancel_sub_ = node_.subscribe("/auto_dock/cancel", 1, &UsbCamNode::cancel_cb, this);
+    auto_dock_docking_state_sub_= node_.subscribe("/auto_dock/docking_state", 1, &UsbCamNode::docking_state_cb, this);
+
     cam_.auto_dock_start_ = false;
     cam_.auto_dock_cancel_ = true;
     // grab the parameters
