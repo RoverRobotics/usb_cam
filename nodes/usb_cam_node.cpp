@@ -54,7 +54,7 @@ public:
 
   // shared image message
   sensor_msgs::Image img_;
-  image_transport::CameraPublisher image_pub_;
+  image_transport::CameraPublisher image_pub_, teleop_cam_pub_;
   // parameters
   std::string video_device_name_, io_method_name_, pixel_format_name_, camera_name_, camera_info_url_;
   //std::string start_service_name_, start_service_name_;
@@ -128,6 +128,7 @@ public:
     // advertise the main image topic
     image_transport::ImageTransport it(node_);
     image_pub_ = it.advertiseCamera("image_raw", 1);
+    teleop_cam_pub_ = it.advertiseCamera("teleop_cam", 1);
     //auto_dock_start_sub_ = node_.subscribe("/auto_dock/start", 1, &UsbCamNode::start_cb, this);
     //auto_dock_cancel_sub_ = node_.subscribe("/auto_dock/cancel", 1, &UsbCamNode::cancel_cb, this);
     auto_dock_docking_state_sub_= node_.subscribe("/auto_dock/docking_state", 1, &UsbCamNode::docking_state_cb, this);
@@ -285,10 +286,11 @@ public:
     ci->header.stamp = img_.header.stamp;
 
     // publish the image
+    teleop_cam_pub_.publish(img_, *ci);
     if (cam_.auto_dock_start_)
     {
       image_pub_.publish(img_, *ci);
-      cam_.publish_all(img_, ci);
+      //cam_.publish_all(img_, ci);
     }
     return true;
   }
