@@ -443,12 +443,9 @@ void UsbCam::mjpeg2rgb(char *MJPEG, int len, char *RGB, int NumPixels)
     return;
   }
 
-  video_sws_ = sws_getContext(xsize, ysize, avcodec_context_->pix_fmt, xsize, ysize, AV_PIX_FMT_RGB24, SWS_BILINEAR, NULL,
-			      NULL,  NULL);
-  sws_scale(video_sws_, avframe_camera_->data, avframe_camera_->linesize, 0, ysize, avframe_rgb_->data,
-            avframe_rgb_->linesize);
+  video_sws_ = sws_getContext(xsize, ysize, avcodec_context_->pix_fmt, xsize, ysize, AV_PIX_FMT_RGB24, SWS_BILINEAR, NULL, NULL,  NULL);
+  sws_scale(video_sws_, avframe_camera_->data, avframe_camera_->linesize, 0, ysize, avframe_rgb_->data, avframe_rgb_->linesize);
   sws_freeContext(video_sws_);
-
   int size = avpicture_layout((AVPicture *)avframe_rgb_, AV_PIX_FMT_RGB24, xsize, ysize, (uint8_t *)RGB, avframe_rgb_size_);
   if (size != avframe_rgb_size_)
   {
@@ -466,17 +463,19 @@ void UsbCam::process_image(const void * src, int len, camera_image_t *dest)
       mono102mono8((char*)src, dest->image, dest->width * dest->height);
     }
     else
-    {
       yuyv2rgb((char*)src, dest->image, dest->width * dest->height);
-    }
+  
   }
   else if (pixelformat_ == V4L2_PIX_FMT_UYVY)
     uyvy2rgb((char*)src, dest->image, dest->width * dest->height);
-  else if (pixelformat_ == V4L2_PIX_FMT_MJPEG)
-    mjpeg2rgb((char*)src, len, dest->image, dest->width * dest->height);
-  else if (pixelformat_ == V4L2_PIX_FMT_RGB24)
+    
+    else if (pixelformat_ == V4L2_PIX_FMT_MJPEG)
+    {
+        mjpeg2rgb((char*)src, len, dest->image, dest->width * dest->height);
+    }
+    else if (pixelformat_ == V4L2_PIX_FMT_RGB24)
     rgb242rgb((char*)src, dest->image, dest->width * dest->height);
-  else if (pixelformat_ == V4L2_PIX_FMT_GREY)
+    else if (pixelformat_ == V4L2_PIX_FMT_GREY)
     memcpy(dest->image, (char*)src, dest->width * dest->height);
 }
 
@@ -613,6 +612,8 @@ void UsbCam::stop_capturing(void)
 
 void UsbCam::start_capturing(void)
 {
+
+  av_log_set_level(AV_LOG_QUIET);
 
   if(is_capturing_) return;
 
