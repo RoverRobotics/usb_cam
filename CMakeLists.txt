@@ -64,6 +64,7 @@ target_link_libraries(${PROJECT_NAME}_nodelet
   ${catkin_LIBRARIES}
 )
 
+#---jack's additions for move_dock and service msg generaton
 add_executable(move_dock src/move_dock.cpp)
 target_link_libraries(move_dock ${catkin_LIBRARIES})
 add_dependencies(move_dock usb_cam_gencpp)
