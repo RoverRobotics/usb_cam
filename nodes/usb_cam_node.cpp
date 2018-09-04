@@ -112,7 +112,7 @@ public:
   void docking_state_cb(const std_msgs::String::ConstPtr& msg)
   {
     std::string state = msg->data.c_str();
-    if (( state== (std::string) "docked") || (state == (std::string) "docking_failed") || (state ==(std::string) "waiting") || ( state ==(std::string) "undock") || ( state ==(std::string) "cancelled"))
+    if (( state== (std::string) "undocked") ||( state== (std::string) "docked") || (state == (std::string) "docking_failed") || (state ==(std::string) "waiting") || ( state ==(std::string) "undock") || ( state ==(std::string) "cancelled"))
     {
       cam_.auto_dock_start_ = false;
     }
