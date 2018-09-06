@@ -4,28 +4,42 @@ project(usb_cam)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS image_transport roscpp std_msgs sensor_msgs camera_info_manager)
+find_package(catkin REQUIRED COMPONENTS
+  image_transport
+  roscpp
+  std_msgs
+  std_srvs
+  sensor_msgs
+  message_generation
+  camera_info_manager
+  move_base_msgs
+  nodelet
+  actionlib
+)
+
+add_service_files(
+  FILES
+  HandleTopic.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
+# Use C++11
+set(CMAKE_CXX_FLAGS "--std=c++11 ${CMAKE_CXX_FLAGS}")
 
 ## pkg-config libraries
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(avcodec libavcodec REQUIRED)
 pkg_check_modules(swscale libswscale REQUIRED)
 
-###################################################
-## Declare things to be passed to other projects ##
-###################################################
-
-## LIBRARIES: libraries you create in this project that dependent projects also need
-## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
+  CATKIN_DEPENDS message_runtime
 )
-
-###########
-## Build ##
-###########
 
 include_directories(include
   ${catkin_INCLUDE_DIRS}
@@ -41,6 +55,21 @@ target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
 
+## Build USB camera nodelet library
+add_library(${PROJECT_NAME}_nodelet nodes/usb_cam_nodelet.cpp)
+target_link_libraries(${PROJECT_NAME}_nodelet
+  ${PROJECT_NAME}
+  ${avcodec_LIBRARIES}
+  ${swscale_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
+#---jack's additions for move_dock and service msg generaton
+add_executable(move_dock src/move_dock.cpp)
+target_link_libraries(move_dock ${catkin_LIBRARIES})
+add_dependencies(move_dock usb_cam_gencpp)
+add_dependencies(usb_cam usb_cam_generate_messages_cpp)
+
 ## Declare a cpp executable
 add_executable(${PROJECT_NAME}_node nodes/usb_cam_node.cpp)
 target_link_libraries(${PROJECT_NAME}_node
@@ -50,14 +79,15 @@ target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
 )
 
-#############
-## Install ##
-#############
-
 ## Mark executables and/or libraries for installation
-install(TARGETS ${PROJECT_NAME}_node ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME}_node ${PROJECT_NAME} ${PROJECT_NAME}_nodelet
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+
+# Copy xml files
+install(FILES package.xml nodelet_plugins.xml
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
 ## Copy launch files

@@ -39,6 +39,10 @@
 #include <image_transport/image_transport.h>
 #include <camera_info_manager/camera_info_manager.h>
 #include <sstream>
+#include <std_srvs/Empty.h>
+#include <usb_cam/HandleTopic.h>
+#include <std_msgs/Bool.h>
+#include <std_msgs/String.h>
 
 namespace usb_cam {
 
@@ -50,10 +54,11 @@ public:
 
   // shared image message
   sensor_msgs::Image img_;
-  image_transport::CameraPublisher image_pub_;
-
+  image_transport::CameraPublisher image_pub_; //, teleop_cam_pub_;
   // parameters
   std::string video_device_name_, io_method_name_, pixel_format_name_, camera_name_, camera_info_url_;
+  //std::string start_service_name_, start_service_name_;
+  bool streaming_status_;
   int image_width_, image_height_, framerate_, exposure_, brightness_, contrast_, saturation_, sharpness_, focus_,
       white_balance_, gain_;
   bool autofocus_, autoexposure_, auto_white_balance_;
@@ -61,13 +66,75 @@ public:
 
   UsbCam cam_;
 
+  ros::ServiceServer service_start_, service_stop_, service_start_pub_, service_stop_pub_;
+
+  ros::Subscriber auto_dock_start_sub_, auto_dock_cancel_sub_, auto_dock_docking_state_sub_;
+
+  bool service_start_pub(usb_cam::HandleTopic::Request &req, usb_cam::HandleTopic::Response &res)
+  {
+    cam_.start_pub(req.topic_name, node_);
+    return true;
+  }
+
+  bool service_stop_pub(usb_cam::HandleTopic::Request &req, usb_cam::HandleTopic::Response &res)
+  {
+    cam_.stop_pub(req.topic_name);
+    //ROS_INFO("stop %s", req.topic_name.c_str());
+    return true;
+  }
+
+  bool service_start_cap(std_srvs::Empty::Request  &req, std_srvs::Empty::Response &res )
+  {
+    cam_.start_capturing();
+    return true;
+  }
+
+
+  bool service_stop_cap( std_srvs::Empty::Request  &req, std_srvs::Empty::Response &res )
+  {
+    cam_.stop_capturing();
+    return true;
+  }
+
+  void start_cb(const std_msgs::Bool::ConstPtr& msg)
+  {
+    cam_.auto_dock_start_ = msg->data;
+  }
+
+  void cancel_cb(const std_msgs::Bool::ConstPtr& msg)
+  {
+    if (msg->data)
+    {
+      cam_.auto_dock_start_ = false ;
+    }
+  }
+
+  void docking_state_cb(const std_msgs::String::ConstPtr& msg)
+  {
+    std::string state = msg->data.c_str();
+    if (( state== (std::string) "undocked") ||( state== (std::string) "docked") || (state == (std::string) "docking_failed") || (state ==(std::string) "waiting") || ( state ==(std::string) "undock") || ( state ==(std::string) "cancelled"))
+    {
+      cam_.auto_dock_start_ = false;
+    }
+    else
+    {
+      cam_.auto_dock_start_ = true;
+    }
+  }
+
   UsbCamNode() :
       node_("~")
   {
     // advertise the main image topic
     image_transport::ImageTransport it(node_);
-    image_pub_ = it.advertiseCamera("image_raw", 1);
+    //image_pub_ = it.advertiseCamera("image_raw", 1);
+    image_pub_ = it.advertiseCamera("image", 1);
+    //auto_dock_start_sub_ = node_.subscribe("/auto_dock/start", 1, &UsbCamNode::start_cb, this);
+    //auto_dock_cancel_sub_ = node_.subscribe("/auto_dock/cancel", 1, &UsbCamNode::cancel_cb, this);
+    //auto_dock_docking_state_sub_= node_.subscribe("/auto_dock/docking_state", 1, &UsbCamNode::docking_state_cb, this);
 
+    //cam_.auto_dock_start_ = false;
+    //cam_.auto_dock_cancel_ = true;
     // grab the parameters
     node_.param("video_device", video_device_name_, std::string("/dev/video0"));
     node_.param("brightness", brightness_, -1); //0-255, -1 "leave alone"
@@ -97,6 +164,13 @@ public:
     node_.param("camera_name", camera_name_, std::string("head_camera"));
     node_.param("camera_info_url", camera_info_url_, std::string(""));
     cinfo_.reset(new camera_info_manager::CameraInfoManager(node_, camera_name_, camera_info_url_));
+
+    // create Services
+    service_start_ = node_.advertiseService("start_capture", &UsbCamNode::service_start_cap, this);
+    service_stop_ = node_.advertiseService("stop_capture", &UsbCamNode::service_stop_cap, this);
+    service_start_pub_ = node_.advertiseService("start_pub", &UsbCamNode::service_start_pub, this);
+    service_stop_pub_ = node_.advertiseService("stop_pub", &UsbCamNode::service_stop_pub, this);
+    //Create subscribers
     // check for default camera info
     if (!cinfo_->isCalibrated())
     {
@@ -213,7 +287,11 @@ public:
 
     // publish the image
     image_pub_.publish(img_, *ci);
-
+/*    if (cam_.auto_dock_start_)
+    {
+      image_pub_.publish(img_, *ci);
+      //cam_.publish_all(img_, ci);
+    }*/
     return true;
   }
 
@@ -222,13 +300,21 @@ public:
     ros::Rate loop_rate(this->framerate_);
     while (node_.ok())
     {
-      if (!take_and_send_image())
-        ROS_WARN("USB camera did not respond in time.");
+      if (cam_.is_capturing()) {
+        if (!take_and_send_image()) ROS_WARN("USB camera did not respond in time.");
+      }
       ros::spinOnce();
       loop_rate.sleep();
+
     }
     return true;
   }
+
+
+
+
+
+
 };
 
 }
