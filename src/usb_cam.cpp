@@ -366,7 +366,7 @@ UsbCam::~UsbCam()
   shutdown();
 }
 
-int UsbCam::init_mjpeg_decoder(int image_width, int image_height)
+int UsbCam::init_mjpeg_decoder(int image_width, int image_height, AVPixelFormat decode_yuyv_format)
 {
   avcodec_register_all();
 
@@ -392,7 +392,8 @@ int UsbCam::init_mjpeg_decoder(int image_width, int image_height)
   avcodec_context_->codec_type = AVMEDIA_TYPE_VIDEO;
 #endif
 
-  avframe_camera_size_ = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, image_width, image_height, 1);
+  avframe_camera_size_ = av_image_get_buffer_size(decode_yuyv_format, image_width, image_height, 1);
+  //avframe_camera_size_ = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, image_width, image_height, 1);
   avframe_rgb_size_ = av_image_get_buffer_size(AV_PIX_FMT_RGB24, image_width, image_height, 1);
 
   /* open it */
@@ -1052,6 +1053,8 @@ void UsbCam::start(const std::string& dev, io_method io_method,
 {
   camera_dev_ = dev;
 
+  AVPixelFormat decode_yuyv_format=AV_PIX_FMT_YUV420P;
+
   io_ = io_method;
   monochrome_ = false;
   if (pixel_format == PIXEL_FORMAT_YUYV)
@@ -1061,7 +1064,19 @@ void UsbCam::start(const std::string& dev, io_method io_method,
   else if (pixel_format == PIXEL_FORMAT_MJPEG)
   {
     pixelformat_ = V4L2_PIX_FMT_MJPEG;
-    init_mjpeg_decoder(image_width, image_height);
+    init_mjpeg_decoder(image_width, image_height, decode_yuyv_format);
+  }
+  else if (pixel_format == PIXEL_FORMAT_MJPEG0)
+  {
+    pixelformat_ = V4L2_PIX_FMT_MJPEG;
+    decode_yuyv_format=AV_PIX_FMT_YUV420P;
+    init_mjpeg_decoder(image_width, image_height, decode_yuyv_format);
+  }
+  else if (pixel_format == PIXEL_FORMAT_MJPEG2)
+  {
+    pixelformat_ = V4L2_PIX_FMT_MJPEG;
+    decode_yuyv_format=AV_PIX_FMT_YUV422P;
+    init_mjpeg_decoder(image_width, image_height, decode_yuyv_format);
   }
   else if (pixel_format == PIXEL_FORMAT_YUVMONO10)
   {
@@ -1278,6 +1293,10 @@ UsbCam::pixel_format UsbCam::pixel_format_from_string(const std::string& str)
       return PIXEL_FORMAT_UYVY;
     else if (str == "mjpeg")
       return PIXEL_FORMAT_MJPEG;
+    else if (str == "mjpeg0")
+      return PIXEL_FORMAT_MJPEG0;
+    else if (str == "mjpeg2")
+      return PIXEL_FORMAT_MJPEG2;
     else if (str == "yuvmono10")
       return PIXEL_FORMAT_YUVMONO10;
     else if (str == "rgb24")
